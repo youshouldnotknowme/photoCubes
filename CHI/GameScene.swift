@@ -2,88 +2,205 @@
 //  GameScene.swift
 //  CHI
 //
-//  Created by Miguel Sicart on 12/09/2017.
-//  Copyright © 2017 foreplay. All rights reserved.
+//  Created by XXXXXX on 27/02/16.
+//  Copyright (c) 2017 XXXXXX. All rights reserved.
 //
 
 import SpriteKit
-import GameplayKit
+import Photos
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate
+{
+    //images data
+    var images: NSMutableArray!
+    var totalImageCountNeeded:Int!
     
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+    //gameplay data
+    let world = SKNode()
+    let maxForce:CGFloat = 20000
+    let maxNumber = 10
+    //let thingMass:CGFloat = 1
+    var thingArray:[SKSpriteNode] = [SKSpriteNode]()
     
-    override func didMove(to view: SKView) {
+    //flicking mechanic
+    var touchPoint:CGPoint = CGPoint()
+    var touching:Bool = false
+    var thingMoved:String = String()
+    
+    //selecting a picture
+    var slc:SKSpriteNode = SKSpriteNode()
+    var bg:SKSpriteNode = SKSpriteNode()
+    
+    override func didMove(to view: SKView)
+    {
+        //we start by loading the pictures to an array
+        fetchPhotos()
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
+        //background color and adding a world node to the scene to manage location
+        self.backgroundColor = UIColor.white
+        self.addChild(world)
+        
+        //adding a new node
+        slc = SKSpriteNode(color: UIColor.red, size: CGSize(width: self.size.width * 2, height: 100))
+        slc.anchorPoint = CGPoint(x: 0, y: 0)
+        slc.position = CGPoint(x: 0, y: self.size.height - self.size.height/6)
+        slc.zPosition = 1
+        world.addChild(slc)
+        
+        bg = SKSpriteNode(color: UIColor.white, size: CGSize(width: 500, height: 500))
+        bg.anchorPoint = CGPoint(x: 0.5,y: 0.5)
+        bg.position = CGPoint(x: self.size.width/2, y: self.size.width)
+        world.addChild(bg)
+        
+        for i in 0 ..< images.count
+        {
+            let texture = SKTexture(image: images[i] as! UIImage)
+            let thing = SKSpriteNode(texture: texture, size: CGSize(width: 40, height: 40))
+            let equis = randomBetweenNumbers(0, secondNum: self.size.width)
+            let yGriega = randomBetweenNumbers(0, secondNum: self.size.height - self.size.height/4)
+            thing.position = CGPoint(x: equis, y: yGriega)
+            thing.physicsBody = SKPhysicsBody(rectangleOf: thing.size)
+            thing.physicsBody?.affectedByGravity = true
+            thing.physicsBody?.usesPreciseCollisionDetection = true
+            //thing.physicsBody?.mass = thingMass
+            thing.name = "thing"+String(i)
+            thingArray.append(thing)
+            world.addChild(thing)
         }
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+        physicsWorld.contactDelegate = self
+        self.physicsBody = SKPhysicsBody(edgeLoopFrom: self.frame)
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
+    }
+    
+    func randomBetweenNumbers(_ firstNum: CGFloat, secondNum: CGFloat) -> CGFloat
+    {
+        return CGFloat(arc4random()) / CGFloat(UINT32_MAX) * abs(firstNum - secondNum) + min(firstNum, secondNum)
+    }
+    
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?)
+    {
+        for touch: AnyObject in touches
+        {
+            let location = touch.location(in: self)
             
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
+            for element in thingArray
+            {
+                if element.frame.contains(location)
+                {
+                    touchPoint = location
+                    touching = true
+                    thingMoved = element.name!
+                }
+            }
         }
     }
     
     
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?)
+    {
+        for touch:AnyObject in touches
+        {
+            let location = touch.location(in: self)
+            touchPoint = location
         }
     }
     
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?)
+    {
+        touching = false
+        thingMoved = ""
     }
     
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?)
+    {
+        touching = false
+        thingMoved = ""
     }
     
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
+    
+    override func update(_ currentTime: TimeInterval)
+    {
+        checkContact()
+    }
+    
+    func checkContact()
+    {
+        for element in thingArray
+        {
+            if element.name == thingMoved
+            {
+                let dt:CGFloat = 1.0/60.0
+                let distance = CGVector(dx: touchPoint.x-element.position.x, dy: touchPoint.y-element.position.y)
+                let velocity = CGVector(dx: distance.dx/dt, dy: distance.dy/dt)
+                element.physicsBody!.velocity = velocity
+            }
+            
+            //element.position = CGPoint(x: touchPoint.x, y: touchPoint.y)
+            
+            if element.position.y > self.size.height - self.size.height/6
+            {
+                slc.zPosition = -2
+                let bgd = fetchSelectedPhoto(thingArray.index(of: element)!)
+                bg.texture = SKTexture(image: bgd)
+                bg.zPosition = -1
+            }
+            
         }
         
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
     }
     
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
+    func fetchPhotos()
+    {
+        images = NSMutableArray()
+        totalImageCountNeeded = 10
+        self.fetchPhotoAtIndexFromEnd(0)
+        
     }
     
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+    func fetchPhotoAtIndexFromEnd(_ index:Int)
+    {
+        
+        let manager = PHImageManager.default()
+        
+        //this returns just the thumbnail
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = true
+        
+        //sort images by creation date
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        
+        if let fetchResult: PHFetchResult = PHAsset.fetchAssets(with: PHAssetMediaType.image, options: fetchOptions)
+        {
+            if fetchResult.count > 0
+            {
+                manager.requestImage(for: fetchResult.object(at: fetchResult.count - 1 - index) as! PHAsset, targetSize: view!.frame.size, contentMode: PHImageContentMode.aspectFill, options: requestOptions, resultHandler: { (image, _) in
+                    
+                    //                manager.requestImageForAsset(fetchResult.objectAtIndex(fetchResult.count - 1 - index) as! PHAsset, targetSize: targetSize, contentMode: PHImageContentMode.AspectFill, options: requestOptions, resultHandler: { (image, _) in
+                    
+                    self.images.add(image!)
+                    
+                    if index + 1 < fetchResult.count && self.images.count < self.totalImageCountNeeded {
+                        self.fetchPhotoAtIndexFromEnd(index + 1)
+                    } else {
+                        // Else you have completed creating your array
+                        //print("Completed array: \(self.images)")
+                    }
+                })
+                
+            }
+        }
+        
     }
     
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+    func fetchSelectedPhoto(_ index: Int) -> UIImage
+    {
+        return(images[index]) as! UIImage
     }
     
-    
-    override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
-    }
 }
+
+

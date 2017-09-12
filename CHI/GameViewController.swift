@@ -1,55 +1,53 @@
 //
 //  GameViewController.swift
 //  CHI
-//
-//  Created by Miguel Sicart on 12/09/2017.
-//  Copyright © 2017 foreplay. All rights reserved.
+//  Created by XXXXXXX on 02/03/16.
+//  Copyright (c) 2017 XXXXXXX. All rights reserved.
 //
 
 import UIKit
 import SpriteKit
-import GameplayKit
 
 class GameViewController: UIViewController {
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        if let view = self.view as! SKView? {
-            // Load the SKScene from 'GameScene.sks'
-            if let scene = SKScene(fileNamed: "GameScene") {
-                // Set the scale mode to scale to fit the window
-                scene.scaleMode = .aspectFill
-                
-                // Present the scene
-                view.presentScene(scene)
-            }
+        if let scene = GameScene(fileNamed:"GameScene") {
+            // Configure the view.
+            let skView = self.view as! SKView
+            skView.showsFPS = true
+            skView.showsNodeCount = true
             
-            view.ignoresSiblingOrder = true
+            /* Sprite Kit applies additional optimizations to improve rendering performance */
+            skView.ignoresSiblingOrder = true
             
-            view.showsFPS = true
-            view.showsNodeCount = true
+            /* Set the scale mode to scale to fit the window */
+            scene.scaleMode = .aspectFill
+            scene.size = skView.bounds.size
+            
+            skView.presentScene(scene)
         }
     }
-
-    override var shouldAutorotate: Bool {
+    
+    override var shouldAutorotate : Bool {
         return true
     }
-
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+    
+    override var supportedInterfaceOrientations : UIInterfaceOrientationMask {
         if UIDevice.current.userInterfaceIdiom == .phone {
             return .allButUpsideDown
         } else {
             return .all
         }
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Release any cached data, images, etc that aren't in use.
     }
-
-    override var prefersStatusBarHidden: Bool {
+    
+    override var prefersStatusBarHidden : Bool {
         return true
     }
 }
